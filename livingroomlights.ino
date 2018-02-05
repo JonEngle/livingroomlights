@@ -24,10 +24,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include "FastLED.h"
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-
 #include "./NetworkConfig.h"
 
 /************ WIFI and MQTT Information (CHANGE THESE FOR YOUR SETUP) ******************/
@@ -35,7 +32,7 @@ const char* ssid = SSID_STRING;
 const char* password = WPA_PASSWORD;
 const char* mqtt_server = MQTT_SERVER;
 const char* mqtt_username = MQTT_USERNAME;
-const char* mqtt_password = "n2D7c5kzkK7m";
+const char* mqtt_password = MQTT_PASSWORD;
 const int mqtt_port = MQTT_PORT;
 
 
