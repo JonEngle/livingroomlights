@@ -24,7 +24,7 @@
   - Switched to WS2813 LEDs
 */
 
-#define ENABLE_LCD
+//#define ENABLE_LCD
 #define ENABLE_OTA
 
 #ifdef ENABLE_LCD
@@ -35,6 +35,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #define FASTLED_ALLOW_INTERRUPTS 0
+#define FASTLED_INTERRUPT_RETRY_COUNT 0
 #include "FastLED.h"
 #ifdef ENABLE_OTA
   #include <ArduinoOTA.h>
@@ -74,10 +75,14 @@ LiquidCrystal_I2C lcd(0x27, 20, 4);
 /*********************************** FastLED Defintions ********************************/
 #define NUM_LEDS    1126
 
-// room side 1
-// room side 2
-// room side 3
-// room side 4
+//275
+
+//1126
+
+// room side 1 268
+// room side 2 295
+// room side 3 268
+// room side 4 295
 
 
 // 1st string 155 155
@@ -267,6 +272,7 @@ void setup_wifi() {
   Serial.println(ssid);
   
   WiFi.mode(WIFI_STA);
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
