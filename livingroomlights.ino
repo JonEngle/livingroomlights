@@ -1,10 +1,6 @@
 /*
-  .______   .______    __    __   __    __          ___      __    __  .___________.  ______   .___  ___.      ___   .___________. __    ______   .__   __.
-  |   _  \  |   _  \  |  |  |  | |  |  |  |        /   \    |  |  |  | |           | /  __  \  |   \/   |     /   \  |           ||  |  /  __  \  |  \ |  |
-  |  |_)  | |  |_)  | |  |  |  | |  |__|  |       /  ^  \   |  |  |  | `---|  |----`|  |  |  | |  \  /  |    /  ^  \ `---|  |----`|  | |  |  |  | |   \|  |
-  |   _  <  |      /  |  |  |  | |   __   |      /  /_\  \  |  |  |  |     |  |     |  |  |  | |  |\/|  |   /  /_\  \    |  |     |  | |  |  |  | |  . `  |
-  |  |_)  | |  |\  \-.|  `--'  | |  |  |  |     /  _____  \ |  `--'  |     |  |     |  `--'  | |  |  |  |  /  _____  \   |  |     |  | |  `--'  | |  |\   |
-  |______/  | _| `.__| \______/  |__|  |__|    /__/     \__\ \______/      |__|      \______/  |__|  |__| /__/     \__\  |__|     |__|  \______/  |__| \__|
+  Started from Bruh Automation, forking and adding more functionality.
+
 
   Thanks much to @corbanmailloux for providing a great framework for implementing flash/fade with HomeAssistant https://github.com/corbanmailloux/esp-mqtt-rgb-led
   
@@ -18,13 +14,32 @@
       - FastLED 
       - PubSubClient
       - ArduinoJSON
+
+      - Arduino Liquid Crystal I2C library
+
+  - Define FASTLED_ALLOW_INTERRUPTS 0 to eliminate glitches in output.
+
+  - Moved 'sensitive' info into NetworkConfig.h.
+
+  - Switched to WS2813 LEDs
 */
+
+#define ENABLE_LCD
+#define ENABLE_OTA
+
+#ifdef ENABLE_LCD
+#include <LiquidCrystal_I2C.h>
+#endif
 
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#define FASTLED_ALLOW_INTERRUPTS 0
 #include "FastLED.h"
-#include <ArduinoOTA.h>
+#ifdef ENABLE_OTA
+  #include <ArduinoOTA.h>
+#endif
+
 #include "./NetworkConfig.h"
 
 /************ WIFI and MQTT Information (CHANGE THESE FOR YOUR SETUP) ******************/
@@ -53,10 +68,27 @@ String oldeffectString = "solid";
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(10);
 #define MQTT_MAX_PACKET_SIZE 512
 
-
-
+#ifdef ENABLE_LCD
+LiquidCrystal_I2C lcd(0x27, 20, 4);
+#endif
 /*********************************** FastLED Defintions ********************************/
-#define NUM_LEDS    300
+#define NUM_LEDS    1126
+
+// room side 1
+// room side 2
+// room side 3
+// room side 4
+
+
+// 1st string 155 155
+// 2nd string 150 305
+// 3rd string 151 456
+// 4th string 150 606
+// 5th string 150 756
+// 6th string 150 906
+// 7th string 150
+
+//600
 #define DATA_PIN    5
 //#define CLOCK_PIN 5
 #define CHIPSET     WS2813
@@ -169,6 +201,15 @@ struct CRGB leds[NUM_LEDS];
 
 /********************************** START SETUP*****************************************/
 void setup() {
+
+#ifdef ENABLE_LCD
+  lcd.begin();
+  lcd.clear();
+  lcd.backlight();
+  lcd.setCursor(0,0);
+
+  lcd.print("Initializing");
+#endif  
   Serial.begin(115200);
   FastLED.addLeds<CHIPSET, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
 
@@ -180,6 +221,7 @@ void setup() {
   client.setCallback(callback);
 
   //OTA SETUP
+#ifdef ENABLE_OTA  
   ArduinoOTA.setPort(OTA_PORT);
   // Hostname defaults to esp8266-[ChipID]
   ArduinoOTA.setHostname(SENSORNAME);
@@ -205,7 +247,7 @@ void setup() {
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
   ArduinoOTA.begin();
-
+#endif
   Serial.println("Ready");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
@@ -425,6 +467,7 @@ void sendState() {
   char buffer[root.measureLength() + 1];
   root.printTo(buffer, sizeof(buffer));
 
+  Serial.println("sending state to mqtt");
   client.publish(light_state_topic, buffer, true);
 }
 
@@ -439,7 +482,7 @@ void reconnect() {
     if (client.connect(SENSORNAME, mqtt_username, mqtt_password)) {
       Serial.println("connected");
       client.subscribe(light_set_topic);
-      setColor(0, 0, 0);
+      setColor(128, 128, 128);
       sendState();
     } else {
       Serial.print("failed, rc=");
@@ -491,9 +534,9 @@ void loop() {
 
 
   client.loop();
-
+#ifdef ENABLE_OTA
   ArduinoOTA.handle();
-
+#endif
 
   //EFFECT BPM
   if (effectString == "bpm") {
@@ -513,9 +556,9 @@ void loop() {
   //EFFECT Candy Cane
   if (effectString == "candy cane") {
     static uint8_t startIndex = 0;
-    startIndex = startIndex + 1; /* higher = faster motion */
+    startIndex = startIndex + 3; /* higher = faster motion */
     fill_palette( leds, NUM_LEDS,
-                  startIndex, 16, /* higher = narrower stripes */
+                  startIndex, 4, /* higher = narrower stripes */
                   currentPalettestriped, 255, LINEARBLEND);
     if (transitionTime == 0 or transitionTime == NULL) {
       transitionTime = 0;
