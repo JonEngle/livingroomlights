@@ -24,18 +24,18 @@
   - Switched to WS2813 LEDs
 */
 
-//#define ENABLE_LCD
+#define ENABLE_LCD
 #define ENABLE_OTA
+#define FASTLED_ALLOW_INTERRUPTS 0
+#define FASTLED_INTERRUPT_RETRY_COUNT 0
 
 #ifdef ENABLE_LCD
-#include <LiquidCrystal_I2C.h>
+  #include <LiquidCrystal_I2C.h>
 #endif
 
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#define FASTLED_ALLOW_INTERRUPTS 0
-#define FASTLED_INTERRUPT_RETRY_COUNT 0
 #include "FastLED.h"
 #ifdef ENABLE_OTA
   #include <ArduinoOTA.h>
@@ -95,7 +95,6 @@ LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 //600
 #define DATA_PIN    5
-//#define CLOCK_PIN 5
 #define CHIPSET     WS2813
 #define COLOR_ORDER GRB
 
@@ -522,28 +521,150 @@ void setColor(int inR, int inG, int inB) {
 }
 
 
-
-/********************************** START MAIN LOOP*****************************************/
-void loop() {
-
+void loopHousekeeping() {
   if (!client.connected()) {
     reconnect();
   }
-
   if (WiFi.status() != WL_CONNECTED) {
     delay(1);
     Serial.print("WIFI Disconnected. Attempting reconnection.");
     setup_wifi();
     return;
   }
-
-
-
   client.loop();
 #ifdef ENABLE_OTA
   ArduinoOTA.handle();
 #endif
+}
 
+void doBpm() {
+    uint8_t BeatsPerMinute = 62;
+    CRGBPalette16 palette = PartyColors_p;
+    uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
+    for ( int i = 0; i < NUM_LEDS; i++) { //9948
+      leds[i] = ColorFromPalette(palette, gHue + (i * 2), beat - gHue + (i * 10));
+    }
+    if (transitionTime == 0 or transitionTime == NULL) {
+      transitionTime = 30;
+    }
+    showleds();
+}
+
+void doMardiGras() {
+  //static const CRGB purple = CRGB::Purpe
+
+  
+  static const CRGBPalette16 mardiGrasPalette(
+                        CRGB::Purple, 
+                        CRGB::Gold, 
+                        CRGB::Green,
+                        CRGB::Purple
+                          );
+
+  static uint8_t startIndex = 0;
+  startIndex = startIndex + 1; /* higher = faster motion */
+  fill_palette( leds, NUM_LEDS,
+                  startIndex, 4, /* higher = narrower stripes */
+                  mardiGrasPalette, 255, LINEARBLEND);
+  if (transitionTime == 0 or transitionTime == NULL) {
+    transitionTime = 250;
+  }
+  showleds();
+}
+
+static const CRGB collegeNavy = CRGB(0x0c2340);
+static const CRGB actionGreen = CRGB(0x78BE20);
+static const CRGB wolfGrey = CRGB(0xA2AAAD);
+
+void doSeahawks2() {
+
+  static const int half = NUM_LEDS/2;
+
+  //CRGB *pLeds = leds;
+
+  //split the lights up in half.  In each half, half collegeNavy, .25 action green, .25 wolfGrey
+  for(int i=0; i < 2; i++) {
+    CRGB *pLeds=&leds[i*half];
+
+    
+    int ledsRemaining=half;
+
+    int blueFill = ledsRemaining/2;
+    fill_solid(pLeds, blueFill, collegeNavy);
+
+    ledsRemaining -= blueFill;
+    pLeds+=blueFill;
+
+    int greenFill = ledsRemaining/4;
+    greenFill*=3;
+    fill_solid(pLeds, greenFill, actionGreen);
+
+    ledsRemaining -= greenFill;
+    pLeds+=greenFill;
+
+    fill_solid(pLeds, ledsRemaining, wolfGrey);
+  }
+  showleds();
+}
+
+
+void doSeahawks1() {
+  static uint8_t startIndex = 0;
+  //startIndex = startIndex + 1; /* higher = faster motion */
+
+
+
+  static const CRGBPalette16 seahawksPalette(
+      collegeNavy, collegeNavy, collegeNavy, collegeNavy,
+      collegeNavy, collegeNavy, collegeNavy, collegeNavy,
+      actionGreen, actionGreen, actionGreen, actionGreen,
+       wolfGrey,  wolfGrey, wolfGrey, wolfGrey
+    ); // wolf grey
+  
+  fill_palette( leds, NUM_LEDS,
+                startIndex, 1, /* higher = narrower stripes */
+                seahawksPalette, 255, LINEARBLEND);
+  if (transitionTime == 0 or transitionTime == NULL) {
+    transitionTime = 0;
+  }
+  showleds();
+ 
+}
+/*
+class EffectLookup { 
+  public:
+  EffectLookup(const char *name, void (*func)()) //: effectName(name), function(func) {}
+  {
+    effectName = name;
+    function = func;
+  };
+  const char *effectName;
+  void (*function)();
+};
+
+static const EffectLookup effects[]= { 
+  EffectLookup("bpm", bpm_impl)
+  
+};
+*/
+
+
+/********************************** START MAIN LOOP*****************************************/
+void loop() {
+  loopHousekeeping();
+
+  if(effectString == "bpm") {
+    doBpm();
+  }
+
+  if(effectString == "mardi gras") {
+    doMardiGras();
+  }
+
+  if(effectString == "seahawks") {
+    doSeahawks2();
+  }
+/*
   //EFFECT BPM
   if (effectString == "bpm") {
     uint8_t BeatsPerMinute = 62;
@@ -557,6 +678,9 @@ void loop() {
     }
     showleds();
   }
+*/
+  
+
 
 
   //EFFECT Candy Cane
@@ -804,7 +928,7 @@ void loop() {
   }
 
 
-  EVERY_N_MILLISECONDS(10) {
+  EVERY_N_MILLISECONDS(100) {
 
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // FOR NOISE ANIMATIon
     {
